@@ -28,12 +28,12 @@ namespace GameDevProject.Lib.Character
             LoadContent(characterType);
         }
 
-        public void LoadContent(string characterType)
+        private void LoadContent(string characterType)
         {
-            texture = content.Load<Texture2D>("Character/"+characterType+"SpriteSheet");
+            texture = content.Load<Texture2D>("Character/"+characterType+"/SpriteSheet");
 
-            animation.SetTextureProperties(texture.Width, texture.Height, 10, 9, 90);
-            animation.SetAnimationCycles("Content/Character/"+characterType+"Animation.Json");
+            animation.SetTextureProperties(texture.Width, texture.Height, 128, 90);
+            animation.SetAnimationCycles("Content/Character/"+characterType+"/Animation.Json");
             animation.Play(animationState);
         }
 
