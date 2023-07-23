@@ -64,18 +64,16 @@ namespace GameDevProject.Lib.Animations
             else { hasCycleEnded = false; }
         }
 
-        public void SetTextureProperties(int width, int height, int numberOfWidthSprites, int numberOfHeightSprites, int numberOfSprites)
+        public void SetTextureProperties(int width, int height, int spriteSize, int numberOfSprites)
         {
-            Width = width / numberOfWidthSprites;
-            Height = height / numberOfHeightSprites;
-
-            for (int y = 0; y < height; y += Height)
+            
+            for (int y = 0; y < height; y += spriteSize)
             {
-                for (int x = 0; x < width; x += Width)
+                for (int x = 0; x < width; x += spriteSize)
                 {
                     if (frames.Count < numberOfSprites)
                     {
-                        frames.Add(new AnimationFrame(new Rectangle(x, y, Width, Height)));
+                        frames.Add(new AnimationFrame(new Rectangle(x, y, spriteSize, spriteSize)));
                     }
                     else
                     {
@@ -84,7 +82,7 @@ namespace GameDevProject.Lib.Animations
                 }
             }
 
-            Origin = new Vector2(Width / 2.0f, Height);
+            Origin = new Vector2(spriteSize / 2.0f, spriteSize);
         }
 
         public void SetAnimationCycles(string name)
