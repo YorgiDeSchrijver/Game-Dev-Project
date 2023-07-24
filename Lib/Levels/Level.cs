@@ -1,6 +1,8 @@
 ﻿using GameDevProject.Lib.Character;
 using GameDevProject.Lib.Interfaces;
+using GameDevProject.Lib.Objects;
 using GameDevProject.Lib.Tiles;
+using GameDevProject.Lib.WindowCamera;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -21,12 +23,13 @@ namespace GameDevProject.Lib.Levels
         private TmxMap map;
         private readonly Dictionary<int, Texture2D> tilesetTextures;
         private readonly Dictionary<int, Vector2> tileLayerOffsets;
-        private readonly Tile[,,] tiles;
+        private Tile[,,] tiles;
         private readonly List<Rectangle> collisionObjects;
         private readonly List<IGameObject> levelObjects;
+        private readonly List<Texture2D> backgrounds;
+        private readonly float[] parallaxFactors = { 0.6f, 0.4f, 0.4f, 0.3f, 0.2f, 0.1f};
 
-
-        public Level(IServiceProvider serviceProvider, Stream fileStream, IInputReader input, GraphicsDevice graphics)
+        public Level(IServiceProvider serviceProvider, Stream fileStream, string world, IInputReader input, GraphicsDevice graphics)
         {
             graphicsDevice = graphics;
             inputReader = input;
@@ -35,17 +38,28 @@ namespace GameDevProject.Lib.Levels
             tilesetTextures = new();
             tileLayerOffsets = new();
             collisionObjects = new();
+            levelObjects = new();
+            backgrounds = new();
 
-            LoadMap(fileStream);
+            LoadMap(fileStream, world);
         }
 
-        private void LoadMap(Stream fileStream)
+        private void LoadMap(Stream fileStream, string world)
         {
             map = new TmxMap(fileStream);
 
+            LoadBackground(world);
             LoadTilesets();
             LoadMapLayers();
             LoadObjects();
+        }
+
+        private void LoadBackground(string world)
+        {
+            for (int i = 1; i <= 6; i++)
+            {
+                backgrounds.Add(content.Load<Texture2D>("World/" + world + "/Background/" + i));
+            }
         }
 
         private void LoadTilesets()
@@ -62,6 +76,7 @@ namespace GameDevProject.Lib.Levels
         private void LoadMapLayers()
         {
             int index = 0;
+            tiles = new Tile[map.Width, map.Height, map.Layers.Count];
             foreach (TmxLayer layer in map.Layers)
             {
                 for (int y = 0; y < map.Height; y++)
@@ -73,6 +88,7 @@ namespace GameDevProject.Lib.Levels
                         tiles[x, y, index] = new Tile(tileTexture);
                     }
                 }
+                tileLayerOffsets.Add(index, new((float)layer.OffsetX, (float)layer.OffsetY));
                 index++;
             }
         }
@@ -87,7 +103,19 @@ namespace GameDevProject.Lib.Levels
                         LoadCollisionRectangles(objectGroup);
                         break;
                     case "Start":
-                        LoadPlayerObject(objectGroup);
+                        LoadPlayer(objectGroup);
+                        break;
+                    case "Coins":
+                        LoadCoins(objectGroup);
+                        break;
+                    case "Crystals":
+                        LoadCrystals(objectGroup);
+                        break;
+                    case "Hearts":
+                        LoadHearts(objectGroup);
+                        break;
+                    case "Stars":
+                        LoadStars(objectGroup);
                         break;
                     default:
                         break;
@@ -104,7 +132,7 @@ namespace GameDevProject.Lib.Levels
             }
         }
 
-        private void LoadPlayerObject(TmxObjectGroup objectGroup)
+        private void LoadPlayer(TmxObjectGroup objectGroup)
         {
             if (objectGroup.Objects.Count > 1)
             {
@@ -118,21 +146,57 @@ namespace GameDevProject.Lib.Levels
             {
                 TmxObject obj = objectGroup.Objects[0];
                 Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Player(position, inputReader, content, "Knight"));
+                levelObjects.Add(new Player(position, inputReader, content, "Knight", collisionObjects));
+            }
+        }
+
+        private void LoadCoins(TmxObjectGroup objectGroup)
+        {
+            foreach (TmxObject obj in objectGroup.Objects)
+            {
+                Vector2 position = new((int)obj.X, (int)obj.Y);
+                levelObjects.Add(new Coin(position, content));
+            }
+        }
+
+
+        private void LoadCrystals(TmxObjectGroup objectGroup)
+        {
+            foreach (TmxObject obj in objectGroup.Objects)
+            {
+                Vector2 position = new((int)obj.X, (int)obj.Y);
+                levelObjects.Add(new Crystal(position, content));
+            }
+        }
+
+        private void LoadHearts(TmxObjectGroup objectGroup)
+        {
+            foreach (TmxObject obj in objectGroup.Objects)
+            {
+                Vector2 position = new((int)obj.X, (int)obj.Y);
+                levelObjects.Add(new Heart(position, content));
+            }
+        }
+
+        private void LoadStars(TmxObjectGroup objectGroup)
+        {
+            foreach (TmxObject obj in objectGroup.Objects)
+            {
+                Vector2 position = new((int)obj.X, (int)obj.Y);
+                levelObjects.Add(new Star(position, content));
             }
         }
 
         private Texture2D GetTileTextureFromGid(int gid)
         {
-            List<int> tilesetKeys = new(tilesetTextures.Keys);
+            /*List<int> tilesetKeys = new(tilesetTextures.Keys);
             int low = 0;
             int high = tilesetKeys.Count - 1;
 
             while (low <= high)
             {
                 int mid = low + (high - low) / 2;
-                int tilesetKey = tilesetKeys[mid];
-                TmxTileset tileset = map.Tilesets[tilesetKey];
+                TmxTileset tileset = map.Tilesets[mid];
 
                 if (gid >= tileset.FirstGid)
                 {
@@ -144,7 +208,7 @@ namespace GameDevProject.Lib.Levels
                     int tilesetY = (tileIndex / tilesPerRow) * tilesetHeight;
                     Rectangle sourceRect = new(tilesetX, tilesetY, tilesetWidth, tilesetHeight);
 
-                    return CreateTileTexture(tilesetTextures[tilesetKey], sourceRect);
+                    return CreateTileTexture(tilesetTextures[tileset.FirstGid], sourceRect);
                 }
                 else if (gid < tileset.FirstGid)
                 {
@@ -155,6 +219,29 @@ namespace GameDevProject.Lib.Levels
                     low = mid + 1;
                 }
             }
+            return null;*/
+
+            for(int i = tilesetTextures.Count - 1; i >= 0; i--)
+            {
+                TmxTileset tileset = map.Tilesets[i];
+                if (gid >= tileset.FirstGid)
+                {
+                    int tileIndex = gid - tileset.FirstGid;
+
+                    int tilesetWidth = tileset.TileWidth;
+                    int tilesetHeight = tileset.TileHeight;
+
+                    int tilesPerRow = (int)(tileset.Image.Width / tilesetWidth);
+
+                    int tilesetX = (tileIndex % tilesPerRow) * tilesetWidth;
+                    int tilesetY = (tileIndex / tilesPerRow) * tilesetHeight;
+
+                    Rectangle sourceRect = new Rectangle(tilesetX, tilesetY, tilesetWidth, tilesetHeight);
+
+                    return CreateTileTexture(tilesetTextures[tileset.FirstGid], sourceRect);
+                }
+            }
+
             return null;
         }
       
@@ -179,6 +266,25 @@ namespace GameDevProject.Lib.Levels
 
         public void Draw(SpriteBatch spriteBatch)
         {
+            float mapWidth = map.Width * Tile.size.X; // Calculate the total width of the map
+
+            for (int i = 0; i < backgrounds.Count; i++)
+            {
+                float layerDepth = 1.0f - (float)i / backgrounds.Count;
+                float parallaxFactor = parallaxFactors[i];
+
+                // Calculate the parallax offset based on camera position and parallax factor
+                float parallaxOffsetX = -(Camera.Transform.Translation.X * parallaxFactor) % backgrounds[i].Width;
+                float parallaxOffsetY = -(Camera.Transform.Translation.Y) - backgrounds[i].Height/2;
+
+                Vector2 backgroundPosition = new Vector2(parallaxOffsetX, parallaxOffsetY);
+
+                for (double j = 0; j < mapWidth; j += backgrounds[i].Width * 1.6)
+                {
+                    spriteBatch.Draw(backgrounds[i], backgroundPosition + new Vector2((float)j, 0f), null, Color.White, 0f, Vector2.Zero, 1.6f, SpriteEffects.None, layerDepth);
+                }
+            }
+
             for (int z = 0; z < tiles.GetLength(2); z++)
             {
                 for (int x = 0; x < tiles.GetLength(0); ++x)

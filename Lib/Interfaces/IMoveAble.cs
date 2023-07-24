@@ -15,5 +15,7 @@ namespace GameDevProject.Lib.Interfaces
         public Rectangle BoundingRectangle { get; }
 
         public bool IsOnGround { get; set; }
+
+        public void HandleCollisions();
     }
 }

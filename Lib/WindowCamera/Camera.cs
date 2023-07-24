@@ -7,7 +7,7 @@ namespace GameDevProject.Lib.WindowCamera
     {
         public static Matrix Transform { get; private set; }
 
-        public static void Follow(IGameObject target)
+        public static void Follow(IMoveAble target)
         {
             Matrix position;
             float translateX = -target.Position.X - (target.BoundingRectangle.Width / 2) + (Game1.ScreenWidth / 2);

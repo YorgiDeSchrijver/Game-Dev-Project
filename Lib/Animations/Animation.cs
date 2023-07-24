@@ -26,42 +26,46 @@ namespace GameDevProject.Lib.Animations
 
         public Animation()
         {
-
+            frames = new List<AnimationFrame>();
+            cycles = new List<AnimationCycle>();
         }
 
         public void Update(GameTime gameTime)
         {
+            int fps = 15;
+            secondCounter += gameTime.ElapsedGameTime.TotalSeconds;
             if (currentCycle != null) 
             { 
-                CurrentFrame = frames[currentCycle[counter]]; 
+                CurrentFrame = frames[currentCycle[counter]];
+                if (secondCounter >= 1d / fps)
+                {
+                    counter++;
+                    secondCounter = 0;
+                }
+                if (counter == currentCycle.Length)
+                {
+                    if (isLooping)
+                    {
+                        counter = 0;
+                    }
+                    else
+                    {
+                        counter = currentCycle.Length - 1;
+                        hasCycleEnded = true;
+                    }
+                }
+                else 
+                { 
+                    hasCycleEnded = false; 
+                }
             } 
             else 
             { 
                 CurrentFrame = frames[counter]; 
             }
 
-            secondCounter += gameTime.ElapsedGameTime.TotalSeconds;
-            int fps = 15;
-
-            if (secondCounter >= 1d / fps)
-            {
-                counter++;
-                secondCounter = 0;
-            }
-            if (counter == currentCycle.Length)
-            {
-                if (isLooping)
-                {
-                    counter = 0;
-                }
-                else
-                {
-                    counter = currentCycle.Length - 1;
-                    hasCycleEnded = true;
-                }
-
-            }
-            else { hasCycleEnded = false; }
+            
+            
         }
 
         public void SetTextureProperties(int width, int height, int spriteSize, int numberOfSprites)
