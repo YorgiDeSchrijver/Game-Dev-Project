@@ -17,7 +17,7 @@ namespace GameDevProject.Lib.Animations
         private int counter = 0;
         private double secondCounter = 0;
         private bool isLooping = false;
-        private bool hasCycleEnded = false;
+        public bool hasCycleEnded { get; private set;} = false;
 
         public Vector2 Origin { get; private set; }
         public AnimationFrame CurrentFrame { get; private set; }
@@ -28,11 +28,12 @@ namespace GameDevProject.Lib.Animations
         {
             frames = new List<AnimationFrame>();
             cycles = new List<AnimationCycle>();
+            CurrentFrame = new AnimationFrame(new Rectangle(0,0,0,0));
         }
 
         public void Update(GameTime gameTime)
         {
-            int fps = 15;
+            int fps = 10;
             secondCounter += gameTime.ElapsedGameTime.TotalSeconds;
             if (currentCycle != null) 
             { 
@@ -63,9 +64,6 @@ namespace GameDevProject.Lib.Animations
             { 
                 CurrentFrame = frames[counter]; 
             }
-
-            
-            
         }
 
         public void SetTextureProperties(int width, int height, int spriteSize, int numberOfSprites)

@@ -1,4 +1,5 @@
-﻿using GameDevProject.Lib.Input;
+﻿using GameDevProject.Lib;
+using GameDevProject.Lib.Input;
 using GameDevProject.Lib.Interfaces;
 using GameDevProject.Lib.Levels;
 using GameDevProject.Lib.WindowCamera;
@@ -17,8 +18,7 @@ namespace GameDevProject
         public static int ScreenHeight { get; private set; }
         public static int ScreenWidth { get; private set; }
 
-        private Level level;
-        private IInputReader inputReader;
+        private GameManager _gameManager;
 
         public Game1()
         {
@@ -36,37 +36,32 @@ namespace GameDevProject
             ScreenHeight = _graphics.PreferredBackBufferHeight;
             ScreenWidth = _graphics.PreferredBackBufferWidth;
 
-            inputReader = new KeyboardReader();
-
+            _gameManager = new(Services, GraphicsDevice);
             base.Initialize();
         }
 
         protected override void LoadContent()
         {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            using Stream fileStream = File.OpenRead("Content/Levels/Level1.tmx");
-            level = new Level(Services, fileStream,"Forest", inputReader ,GraphicsDevice);
-
+            _spriteBatch = new(GraphicsDevice);
         }
 
         protected override void Update(GameTime gameTime)
         {
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || _gameManager.ExitButtonClicked)
                 Exit();
 
-
-            level.Update(gameTime);
+            _gameManager.Update(gameTime);
+            
             base.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.White);
 
             _spriteBatch.Begin(transformMatrix: Camera.Transform);
 
-            level.Draw(_spriteBatch);
+            _gameManager.Draw(_spriteBatch);
 
             _spriteBatch.End();
 

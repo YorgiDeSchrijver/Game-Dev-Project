@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using GameDevProject.Lib.ContentManagement;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace GameDevProject.Lib.Objects
 {
     public class Coin : Object
     {
-        public Coin(Vector2 position, ContentManager content) : base(position, content, "Coin", 32, 12)
+        public Coin(Vector2 position, ContentLoader contentLoader) : base(position, contentLoader, "Coin", 32, 12)
         {
         }
     }

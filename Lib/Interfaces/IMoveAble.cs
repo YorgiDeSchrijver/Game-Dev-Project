@@ -1,21 +1,13 @@
 ﻿using Microsoft.Xna.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GameDevProject.Lib.Interfaces
 {
     public interface IMoveAble
     {
-        public Vector2 Position { get; set; }
-        public IInputReader InputReader { get; set; }
+        Vector2 Position { get; set; }
+        IInputReader InputReader { get; }
+        Rectangle BoundingRectangle { get; }
+        bool IsOnGround { get; set; }
 
-        public Rectangle BoundingRectangle { get; }
-
-        public bool IsOnGround { get; set; }
-
-        public void HandleCollisions();
     }
 }

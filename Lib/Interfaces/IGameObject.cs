@@ -10,6 +10,7 @@ namespace GameDevProject.Lib.Interfaces
 {
     public interface IGameObject
     {
+        Rectangle BoundingRectangle { get; }
         void Update(GameTime gameTime);
         void Draw(SpriteBatch spriteBatch);
     }

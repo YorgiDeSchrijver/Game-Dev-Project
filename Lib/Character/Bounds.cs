@@ -10,41 +10,51 @@ namespace GameDevProject.Lib.Character
 {
     public static class Bounds
     {
-        public static Rectangle Getbounds(Texture2D texture, Rectangle imageBounds)
+        public static Rectangle GetBounds(Texture2D texture, Rectangle imageBounds)
         {
+            int chunkSize = 2;
             Rectangle bounds = new(int.MaxValue, int.MaxValue, int.MinValue, int.MinValue);
             Color[] data = new Color[texture.Width * texture.Height];
             texture.GetData(data);
 
-            for (int y = imageBounds.Y; y < imageBounds.Y + imageBounds.Height; y++)
+            int startX = Math.Max(imageBounds.X, 0);
+            int startY = Math.Max(imageBounds.Y, 0);
+            int endX = Math.Min(imageBounds.X + imageBounds.Width, texture.Width);
+            int endY = Math.Min(imageBounds.Y + imageBounds.Height, texture.Height);
+
+            for (int y = startY; y < endY; y += chunkSize)
             {
-                for (int x = imageBounds.X; x < imageBounds.X + imageBounds.Width; x++)
+                for (int x = startX; x < endX; x += chunkSize)
                 {
-                    int index = (y - imageBounds.Y) * texture.Width + (x - imageBounds.X);
-                    Color pixel = data[index];
-                    if (pixel.A == 255)
+                    int chunkEndX = Math.Min(x + chunkSize, endX);
+                    int chunkEndY = Math.Min(y + chunkSize, endY);
+
+                    for (int subY = y; subY < chunkEndY; subY++)
                     {
-                        bounds.X = Math.Min(bounds.X, x);
-                        bounds.Y = Math.Min(bounds.Y, y);
-                        bounds.Width = Math.Max(bounds.Width, x);
-                        bounds.Height = Math.Max(bounds.Height, y);
+                        for (int subX = x; subX < chunkEndX; subX++)
+                        {
+                            int index = subY * texture.Width + subX;
+                            Color pixel = data[index];
+                            if (pixel.A == 255)
+                            {
+                                bounds.X = Math.Min(bounds.X, subX);
+                                bounds.Y = Math.Min(bounds.Y, subY);
+                                bounds.Width = Math.Max(bounds.Width, subX);
+                                bounds.Height = Math.Max(bounds.Height, subY);
+                            }
+                        }
                     }
                 }
             }
 
-            bounds.Width -= bounds.X;
-            bounds.Height -= bounds.Y;
-            bounds.X -= imageBounds.X;
-            bounds.Y -= imageBounds.Y;
-
-            //check for even numbers
-            bounds.Width = bounds.Width % 2 == 0 ? bounds.Width : bounds.Width--;
-            bounds.Height = bounds.Height % 2 == 0 ? bounds.Height : bounds.Height--;
-            bounds.X = bounds.X % 2 == 0 ? bounds.X : bounds.X--;
-            bounds.Y = bounds.Y % 2 == 0 ? bounds.Y : bounds.Y--;
-
+            // Clamp the values to even numbers
+            bounds.Width = MathHelper.Clamp(bounds.Width - bounds.X + 1, 0, imageBounds.Width);
+            bounds.Height = MathHelper.Clamp(bounds.Height - bounds.Y + 1, 0, imageBounds.Height);
+            bounds.X = MathHelper.Clamp(bounds.X - imageBounds.X, 0, imageBounds.Width - bounds.Width);
+            bounds.Y = MathHelper.Clamp(bounds.Y - imageBounds.Y, 0, imageBounds.Height - bounds.Height);
 
             return bounds;
         }
+
     }
 }

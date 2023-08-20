@@ -10,10 +10,15 @@ namespace GameDevProject.Lib.WindowCamera
         public static void Follow(IMoveAble target)
         {
             Matrix position;
-            float translateX = -target.Position.X - (target.BoundingRectangle.Width / 2) + (Game1.ScreenWidth / 2);
-            float translateY = -target.Position.Y - (target.BoundingRectangle.Height / 2) + (Game1.ScreenHeight / 2);
+            float translateX = -target.Position.X + (Game1.ScreenWidth / 2);
+            float translateY = -target.Position.Y + (Game1.ScreenHeight / 1.5f);
             position = Matrix.CreateTranslation(translateX, translateY, 0);
             Transform = position;
         }
+
+        public static void SetInitialPosition()
+        {
+            Transform = Matrix.CreateTranslation(0, 0, 0);
+        }  
     }
 }

@@ -11,5 +11,7 @@ namespace GameDevProject.Lib.Interfaces
         public float ReadInput();
         public string AnimationState { get; set; }
         public bool IsJumping { get; set; }
+
+        public bool IsDoubleJumping { get; set; }
     }
 }

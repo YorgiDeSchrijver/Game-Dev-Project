@@ -1,101 +1,98 @@
-﻿using GameDevProject.Lib.Animations;
-using GameDevProject.Lib.WindowCamera;
-using GameDevProject.Lib.Interfaces;
+﻿using GameDevProject.Lib.Interfaces;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using GameDevProject.Lib.Input;
-using GameDevProject.Lib.Collisions;
 using System.Collections.Generic;
 using System;
+using GameDevProject.Lib.WindowCamera;
+using GameDevProject.Lib.Animations;
+using System.Diagnostics;
 
 namespace GameDevProject.Lib.Character
 {
-    public class Player: IGameObject, IMoveAble
+    public class Player : IGameObject, IMoveAble
     {
-        private readonly Animation animation;
-        private readonly ContentManager content;
-        private Texture2D texture;
+        private readonly PlayerAnimation playerAnimation;
+        private readonly PlayerMovement playerMovement;
+        private readonly PlayerCollisions playerCollisions;
+
+        private readonly Texture2D texture;
+        private readonly List<Rectangle> collisionObjects;
         private string animationState;
-        private MovementManager movementManager;
-        private Rectangle bounds;
-        private List<Rectangle> collisionObjects;
+        private SpriteEffects spriteEffects;
+
+        private AnimationFrame lastFrame;
+        private Rectangle lastFrameBounds;
+        public Rectangle BoundingRectangle 
+        { 
+            get 
+            { 
+                if(playerAnimation.currentAnimation.CurrentFrame != null)
+                {
+                    if(playerAnimation.currentAnimation.CurrentFrame != lastFrame)
+                    {
+                        lastFrameBounds = Bounds.GetBounds(texture, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle);
+                        lastFrame = playerAnimation.currentAnimation.CurrentFrame;
+                    }
+                    int left = (int)Math.Round(Position.X - playerAnimation.currentAnimation.Origin.X) + lastFrameBounds.X;
+                    int top = (int)Math.Round(Position.Y - playerAnimation.currentAnimation.Origin.Y) + lastFrameBounds.Y;
+                    return new Rectangle(left, top, lastFrameBounds.Width, lastFrameBounds.Height);
+                }
+                return new(0, 0, 0, 0);
+            } 
+        }
 
         public Vector2 Position { get; set; }
-
-        public Rectangle BoundingRectangle
-        {
-            get
-            {
-                if (animation.CurrentFrame != null)
-                {
-                    if (bounds.IsEmpty)
-                    {
-                        bounds = Bounds.Getbounds(texture, animation.CurrentFrame.SourceRectangle);
-                    }
-                    int left = (int)Math.Round(Position.X - animation.Origin.X) + bounds.X;
-                    int top = (int)Math.Round(Position.Y - animation.Origin.Y) + bounds.Y;
-                    return new Rectangle(left, top, bounds.Width, bounds.Height);
-                }
-                return new Rectangle(0, 0, 0, 0);
-            }
-        }
-        public IInputReader InputReader { get; set; }
+        public IInputReader InputReader { get; }
+        
         public bool IsOnGround { get; set; }
-        public PlayerCollisions collisions { get; set; } //Get this out of player class
 
-        public Player(Vector2 position, IInputReader input, ContentManager content, string characterType, List<Rectangle> collisionObjects)
+        public Player(Texture2D texture, Vector2 position, IInputReader inputReader, List<Rectangle> collisionObjects)
         {
-            this.Position = position;
-            this.content = content;
+            this.texture = texture;
             this.collisionObjects = collisionObjects;
-            InputReader = input;
-            animation = new();
-            movementManager = new();
-            collisions = new();
 
-            animationState = "Idle";
-            LoadContent(characterType);
+            Position = position;
+            InputReader = inputReader;
+
+            playerAnimation = new(texture, "Content/Character/Knight/Animation.json");
+            playerMovement = new();
+            playerCollisions = new();
         }
 
-        private void LoadContent(string characterType)
-        {
-            texture = content.Load<Texture2D>("Character/"+characterType+"/SpriteSheet");
-
-            animation.SetTextureProperties(texture.Width, texture.Height, 128, 90);
-            animation.SetAnimationCycles("Content/Character/"+characterType+"/Animation.Json");
-            animation.Play(animationState);
-        }
 
         public void Update(GameTime gameTime)
         {
-            Move(gameTime);
-            GetState(this);
             Camera.Follow(this);
+            //Movement
+            playerMovement.Move(this, gameTime);
+            //Animation
+            animationState = InputReader.AnimationState;
+            playerAnimation.Play(animationState);
+            playerAnimation.Update(gameTime);
+            //Collision
+            playerCollisions.HandleCollisions(this, collisionObjects);
 
-            animation.Play(animationState);
-            animation.Update(gameTime);
-            if (IsOnGround) { InputReader.IsJumping = false; }
+            spriteEffects = InputReader.ReadInput() < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.Draw(texture, Position, animation.CurrentFrame.SourceRectangle, Color.White, 0f, animation.Origin, 1f, SpriteEffects.None, 0f);
-        }
 
-        private void Move(GameTime gameTime)
-        {
-            movementManager.Move(this, gameTime);
+            spriteBatch.Draw(texture, Position, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle, Color.White, 0f, new Vector2(playerAnimation.currentAnimation.CurrentFrame.SourceRectangle.Width / 2, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle.Height) /*playerAnimation.currentAnimation.Origin*/, 1f, spriteEffects, 0f);
+            // Draw the bounding rectangle around the player character
+            Rectangle boundingRect = BoundingRectangle;
+            spriteBatch.DrawRectangle(boundingRect, Color.Red * 0.5f);
         }
+    }
+}
 
-        public void GetState(IMoveAble moveAble)
-        {
-            animationState = moveAble.InputReader.AnimationState;
-        }
+public static class SpriteBatchExtensions
+{
+    public static void DrawRectangle(this SpriteBatch spriteBatch, Rectangle rectangle, Color color)
+    {
+        Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
+        pixel.SetData(new[] { color });
 
-        public void HandleCollisions()
-        {
-            collisions.HandleCollisions(this, collisionObjects, BoundingRectangle);
-        }
+        spriteBatch.Draw(pixel, rectangle, color);
     }
 }

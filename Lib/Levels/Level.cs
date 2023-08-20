@@ -1,288 +1,230 @@
 ﻿using GameDevProject.Lib.Character;
+using GameDevProject.Lib.ContentManagement;
 using GameDevProject.Lib.Interfaces;
 using GameDevProject.Lib.Objects;
 using GameDevProject.Lib.Tiles;
 using GameDevProject.Lib.WindowCamera;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
+using System.Linq;
 using TiledSharp;
 
 namespace GameDevProject.Lib.Levels
 {
-    public class Level
+    public class Level: IDisposable
     {
-        private readonly ContentManager content;
-        private readonly GraphicsDevice graphicsDevice;
-        private readonly IInputReader inputReader;
+        private readonly IMapLoader mapLoader;
+        private readonly ITilesetLoader tilesetLoader;
+        private readonly ILayerLoader layerLoader;
+        private readonly ICollisionLoader collisionLoader;
+        private readonly IObjectLoader objectLoader;
+        private readonly IPlayerLoader playerLoader;
+        private readonly IEnemyLoader enemyLoader;
+        private readonly IBackgroundLoader backgroundLoader;
+        private ContentLoader contentLoader;
 
-        private TmxMap map;
+        private readonly TmxMap map;
         private readonly Dictionary<int, Texture2D> tilesetTextures;
-        private readonly Dictionary<int, Vector2> tileLayerOffsets;
-        private Tile[,,] tiles;
+        private readonly Tile[,,] tiles;
+        private readonly Dictionary<int, Vector2> layerOffsets;
         private readonly List<Rectangle> collisionObjects;
-        private readonly List<IGameObject> levelObjects;
+        private readonly List<IGameObject> gameObjects;
+        private readonly List<IEnemy> enemies;
         private readonly List<Texture2D> backgrounds;
-        private readonly float[] parallaxFactors = { 0.6f, 0.4f, 0.4f, 0.3f, 0.2f, 0.1f};
+        private readonly Rectangle exit;
+        private readonly Player player;
 
-        public Level(IServiceProvider serviceProvider, Stream fileStream, string world, IInputReader input, GraphicsDevice graphics)
+        private bool isPlayerDefeated = false;
+        public bool IsPlayerDefeated => isPlayerDefeated;
+        private bool isLevelCompleted = false;
+        public bool IsLevelCompleted => isLevelCompleted;
+        private int levelNumber;
+        public int LevelNumber => levelNumber;
+
+        private int lives = 3;
+        public int Lives => lives;
+        private int coins = 0;
+        public int Coins => coins;
+        private int stars = 0;
+        public int Stars => stars;
+
+
+        public Level(IMapLoader mapLoader, ITilesetLoader tilesetLoader, ILayerLoader layerLoader, ICollisionLoader collisionLoader, IObjectLoader objectLoader, IPlayerLoader playerLoader, IEnemyLoader enemyLoader, IBackgroundLoader backgroundLoader, IInputReader inputReader, ContentLoader contentLoader, int levelNumber)
         {
-            graphicsDevice = graphics;
-            inputReader = input;
-            content = new ContentManager(serviceProvider, "Content");
+            this.mapLoader = mapLoader;
+            this.tilesetLoader = tilesetLoader;
+            this.layerLoader = layerLoader;
+            this.collisionLoader = collisionLoader;
+            this.objectLoader = objectLoader;
+            this.playerLoader = playerLoader;
+            this.enemyLoader = enemyLoader;
+            this.backgroundLoader = backgroundLoader;
+            this.levelNumber = levelNumber;
+            this.contentLoader = contentLoader;
 
-            tilesetTextures = new();
-            tileLayerOffsets = new();
-            collisionObjects = new();
-            levelObjects = new();
-            backgrounds = new();
-
-            LoadMap(fileStream, world);
+            using Stream fileStream = File.OpenRead("Content/Levels/Level" + levelNumber + ".tmx");
+            //Loading the map
+            map = LoadMap(fileStream);
+            //Loading the tilesets
+            tilesetTextures = LoadTilesets(map);
+            //Loading the layers
+            tiles = LoadLayers(map, tilesetTextures);
+            //Loading the layer offsets
+            layerOffsets = LoadLayerOffsets(map);
+            //Loading the collision rectangles
+            collisionObjects = LoadCollisionRectangles(map);
+            //Loading the game objects
+            gameObjects = LoadObjects(map);
+            //Loading the player
+            player = LoadPlayer(map, inputReader, collisionObjects);
+            enemies = LoadEnemies(map, collisionObjects, player);
+            backgrounds = LoadBackgrounds();
+            exit = LoadExit(map);
+            
         }
 
-        private void LoadMap(Stream fileStream, string world)
+        private TmxMap LoadMap(Stream fileStream)
         {
-            map = new TmxMap(fileStream);
-
-            LoadBackground(world);
-            LoadTilesets();
-            LoadMapLayers();
-            LoadObjects();
+            return mapLoader.LoadMap(fileStream);
         }
 
-        private void LoadBackground(string world)
+        private Dictionary<int, Texture2D> LoadTilesets(TmxMap map)
         {
-            for (int i = 1; i <= 6; i++)
+            return tilesetLoader.LoadTilesets(map, contentLoader);
+        }
+
+        private Tile[,,] LoadLayers(TmxMap map, Dictionary<int, Texture2D> tilesetTextures)
+        {
+            return layerLoader.LoadLayers(map, tilesetTextures);
+        }
+
+        private Dictionary<int, Vector2>LoadLayerOffsets(TmxMap map)
+        {
+            return layerLoader.LoadLayerOffsets(map);
+        }
+
+        private List<Rectangle> LoadCollisionRectangles(TmxMap map)
+        {
+            return collisionLoader.LoadCollisionRectangles(map);
+        }
+
+        private List<IGameObject> LoadObjects(TmxMap map)
+        {
+            return objectLoader.LoadObjects(map, contentLoader);
+        }
+
+        private Player LoadPlayer(TmxMap map, IInputReader inputReader, List<Rectangle> collisionObjects)
+        {
+            return playerLoader.LoadPlayer(map, inputReader, collisionObjects, contentLoader);
+        }
+
+        private Rectangle LoadExit(TmxMap map)
+        {
+            TmxObject exitObject = map.ObjectGroups["End"].Objects.First();
+            return new Rectangle((int)exitObject.X, (int)exitObject.Y, (int)exitObject.Width, (int)exitObject.Height);
+        }
+
+        private List<IEnemy> LoadEnemies(TmxMap map, List<Rectangle> collisionObjects, IMoveAble player)
+        {
+            return enemyLoader.LoadEnemies(map, collisionObjects, player, contentLoader); ;
+        }
+
+        private List<Texture2D> LoadBackgrounds()
+        {
+            return backgroundLoader.LoadBackgrounds(contentLoader);
+        }
+
+        public void HandleObjectCollisions()
+        {
+            List<IGameObject> objectsToRemove = new();
+
+            foreach (IGameObject gameObject in gameObjects)
             {
-                backgrounds.Add(content.Load<Texture2D>("World/" + world + "/Background/" + i));
-            }
-        }
-
-        private void LoadTilesets()
-        {
-            foreach (TmxTileset tileset in map.Tilesets)
-            {
-                string tilesetImagePath = tileset.Image.Source;
-                string tilesetTexturePath = Path.GetRelativePath(content.RootDirectory, tilesetImagePath);
-                Texture2D tilesetTexture = content.Load<Texture2D>(tilesetTexturePath);
-                tilesetTextures.Add(tileset.FirstGid, tilesetTexture);
-            }
-        }
-
-        private void LoadMapLayers()
-        {
-            int index = 0;
-            tiles = new Tile[map.Width, map.Height, map.Layers.Count];
-            foreach (TmxLayer layer in map.Layers)
-            {
-                for (int y = 0; y < map.Height; y++)
+                if (player.BoundingRectangle.Intersects(gameObject.BoundingRectangle))
                 {
-                    for (int x = 0; x < map.Width; x++)
+                    // Check the type of the object (Coin or Star)
+                    if (gameObject is Coin)
                     {
-                        int tileGid = layer.Tiles[x + y * map.Width].Gid;
-                        Texture2D tileTexture = GetTileTextureFromGid(tileGid);
-                        tiles[x, y, index] = new Tile(tileTexture);
+                        coins++; // Increase coins counter
                     }
+                    else if (gameObject is Star)
+                    {
+                        stars++; // Increase stars counter
+                    }
+                    else if(gameObject is Heart)
+                    {
+                        if(lives < 3)
+                        {
+                            lives++;
+                        }
+                    }
+
+                    // Mark the object for removal
+                    objectsToRemove.Add(gameObject);
                 }
-                tileLayerOffsets.Add(index, new((float)layer.OffsetX, (float)layer.OffsetY));
-                index++;
+            }
+
+            // Remove the collided objects
+            foreach (IGameObject objectToRemove in objectsToRemove)
+            {
+                gameObjects.Remove(objectToRemove);
             }
         }
 
-        private void LoadObjects()
+        public void HandleEnemyCollisions()
         {
-            foreach (TmxObjectGroup objectGroup in map.ObjectGroups)
+            List<IEnemy> enemiesToRemove = new();
+            foreach(IEnemy enemy in enemies)
             {
-                switch (objectGroup.Name)
+                if(player.BoundingRectangle.Intersects(enemy.BoundingRectangle) && player.InputReader.AnimationState != "Attack")
                 {
-                    case "Collisions":
-                        LoadCollisionRectangles(objectGroup);
-                        break;
-                    case "Start":
-                        LoadPlayer(objectGroup);
-                        break;
-                    case "Coins":
-                        LoadCoins(objectGroup);
-                        break;
-                    case "Crystals":
-                        LoadCrystals(objectGroup);
-                        break;
-                    case "Hearts":
-                        LoadHearts(objectGroup);
-                        break;
-                    case "Stars":
-                        LoadStars(objectGroup);
-                        break;
-                    default:
-                        break;
+                    lives--;
                 }
-            }
-        }
-
-        private void LoadCollisionRectangles(TmxObjectGroup objectGroup)
-        {
-            foreach (TmxObject tmxObject in objectGroup.Objects)
-            {
-                Rectangle collisionRect = new((int)tmxObject.X, (int)tmxObject.Y - map.TileHeight, (int)tmxObject.Width, (int)tmxObject.Height);
-                collisionObjects.Add(collisionRect);
-            }
-        }
-
-        private void LoadPlayer(TmxObjectGroup objectGroup)
-        {
-            if (objectGroup.Objects.Count > 1)
-            {
-                throw new ArgumentException("Can't create more than 1 start!");
-            }
-            else if (objectGroup.Objects.Count == 0)
-            {
-                throw new ArgumentException("You need a starting point!");
-            }
-            else
-            {
-                TmxObject obj = objectGroup.Objects[0];
-                Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Player(position, inputReader, content, "Knight", collisionObjects));
-            }
-        }
-
-        private void LoadCoins(TmxObjectGroup objectGroup)
-        {
-            foreach (TmxObject obj in objectGroup.Objects)
-            {
-                Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Coin(position, content));
-            }
-        }
-
-
-        private void LoadCrystals(TmxObjectGroup objectGroup)
-        {
-            foreach (TmxObject obj in objectGroup.Objects)
-            {
-                Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Crystal(position, content));
-            }
-        }
-
-        private void LoadHearts(TmxObjectGroup objectGroup)
-        {
-            foreach (TmxObject obj in objectGroup.Objects)
-            {
-                Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Heart(position, content));
-            }
-        }
-
-        private void LoadStars(TmxObjectGroup objectGroup)
-        {
-            foreach (TmxObject obj in objectGroup.Objects)
-            {
-                Vector2 position = new((int)obj.X, (int)obj.Y);
-                levelObjects.Add(new Star(position, content));
-            }
-        }
-
-        private Texture2D GetTileTextureFromGid(int gid)
-        {
-            /*List<int> tilesetKeys = new(tilesetTextures.Keys);
-            int low = 0;
-            int high = tilesetKeys.Count - 1;
-
-            while (low <= high)
-            {
-                int mid = low + (high - low) / 2;
-                TmxTileset tileset = map.Tilesets[mid];
-
-                if (gid >= tileset.FirstGid)
+                if(enemy.currentAnimationState == "Death")
                 {
-                    int tileIndex = gid - tileset.FirstGid;
-                    int tilesetWidth = tileset.TileWidth;
-                    int tilesetHeight = tileset.TileHeight;
-                    int tilesPerRow = (int)(tileset.Image.Width / tilesetWidth);
-                    int tilesetX = (tileIndex % tilesPerRow) * tilesetWidth;
-                    int tilesetY = (tileIndex / tilesPerRow) * tilesetHeight;
-                    Rectangle sourceRect = new(tilesetX, tilesetY, tilesetWidth, tilesetHeight);
-
-                    return CreateTileTexture(tilesetTextures[tileset.FirstGid], sourceRect);
-                }
-                else if (gid < tileset.FirstGid)
-                {
-                    high = mid - 1;
-                }
-                else
-                {
-                    low = mid + 1;
+                    enemiesToRemove.Add(enemy);
                 }
             }
-            return null;*/
-
-            for(int i = tilesetTextures.Count - 1; i >= 0; i--)
+            foreach(IEnemy enemy in enemiesToRemove)
             {
-                TmxTileset tileset = map.Tilesets[i];
-                if (gid >= tileset.FirstGid)
-                {
-                    int tileIndex = gid - tileset.FirstGid;
-
-                    int tilesetWidth = tileset.TileWidth;
-                    int tilesetHeight = tileset.TileHeight;
-
-                    int tilesPerRow = (int)(tileset.Image.Width / tilesetWidth);
-
-                    int tilesetX = (tileIndex % tilesPerRow) * tilesetWidth;
-                    int tilesetY = (tileIndex / tilesPerRow) * tilesetHeight;
-
-                    Rectangle sourceRect = new Rectangle(tilesetX, tilesetY, tilesetWidth, tilesetHeight);
-
-                    return CreateTileTexture(tilesetTextures[tileset.FirstGid], sourceRect);
-                }
+                enemies.Remove(enemy);
             }
-
-            return null;
-        }
-      
-
-        private Texture2D CreateTileTexture(Texture2D spritesheet, Rectangle sourceRect)
-        {
-            Texture2D tileTexture = new(graphicsDevice, sourceRect.Width, sourceRect.Height);
-            Color[] data = new Color[sourceRect.Width * sourceRect.Height];
-            spritesheet.GetData(0, sourceRect, data, 0, data.Length);
-            tileTexture.SetData(data);
-            return tileTexture;
         }
 
         public void Update(GameTime gameTime)
         {
-            foreach (var levelObject in levelObjects)
+            HandleObjectCollisions();
+            HandleEnemyCollisions();
+            foreach (IGameObject gameObject in gameObjects)
             {
-                levelObject.Update(gameTime);
+                gameObject.Update(gameTime);
+            }
+            foreach (IEnemy enemy in enemies)
+            {
+                enemy.Update(gameTime);
+                
+            }
+            player.Update(gameTime);
+
+            if (player.BoundingRectangle.Intersects(exit))
+            {
+                isLevelCompleted = true;
+            }
+            if(lives == 0)
+            {
+                isPlayerDefeated = true;
             }
         }
 
-
-        public void Draw(SpriteBatch spriteBatch)
+        public void Draw(SpriteBatch spriteBatch, Vector2 screenOffset)
         {
-            float mapWidth = map.Width * Tile.size.X; // Calculate the total width of the map
-
             for (int i = 0; i < backgrounds.Count; i++)
             {
-                float layerDepth = 1.0f - (float)i / backgrounds.Count;
-                float parallaxFactor = parallaxFactors[i];
-
-                // Calculate the parallax offset based on camera position and parallax factor
-                float parallaxOffsetX = -(Camera.Transform.Translation.X * parallaxFactor) % backgrounds[i].Width;
-                float parallaxOffsetY = -(Camera.Transform.Translation.Y) - backgrounds[i].Height/2;
-
-                Vector2 backgroundPosition = new Vector2(parallaxOffsetX, parallaxOffsetY);
-
-                for (double j = 0; j < mapWidth; j += backgrounds[i].Width * 1.6)
-                {
-                    spriteBatch.Draw(backgrounds[i], backgroundPosition + new Vector2((float)j, 0f), null, Color.White, 0f, Vector2.Zero, 1.6f, SpriteEffects.None, layerDepth);
-                }
+                spriteBatch.Draw(backgrounds[i], new Vector2(0,0) + screenOffset, null, Color.White, 0f, new(0, 0), 1.1f, SpriteEffects.None, 0f);
             }
 
             for (int z = 0; z < tiles.GetLength(2); z++)
@@ -291,14 +233,30 @@ namespace GameDevProject.Lib.Levels
                 {
                     for (int y = 0; y < tiles.GetLength(1); y++)
                     {
-                        tiles[x, y, z].Draw(spriteBatch, new Vector2(x, y) * Tile.size + tileLayerOffsets[z]);
+                        tiles[x, y, z].Draw(spriteBatch, new Vector2(x, y) * Tile.size + layerOffsets[z] + new Vector2(0,map.TileHeight));
+
                     }
                 }
+
             }
-            foreach (IGameObject levelObject in levelObjects)
+
+            foreach (IGameObject gameObject in gameObjects)
             {
-                levelObject.Draw(spriteBatch);
+                gameObject.Draw(spriteBatch);
             }
+
+            foreach(IEnemy enemy in enemies)
+            {
+                enemy.Draw(spriteBatch);
+            }
+            //objects
+            player.Draw(spriteBatch);
+        }
+
+        public void Dispose()
+        {
+            gameObjects.Clear();
+            enemies.Clear();
         }
     }
 }

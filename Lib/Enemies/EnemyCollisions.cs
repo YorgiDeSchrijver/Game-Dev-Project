@@ -7,14 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GameDevProject.Lib.Collisions
+namespace GameDevProject.Lib.Enemies
 {
-    public class PlayerCollisions
+    public class EnemyCollisions
     {
-        private float previousBottom;
-        public void HandleCollisions(IMoveAble moveable, List<Rectangle> collisionObjects, Rectangle BoundingRectangle)
+        public void HandleCollisions(IEnemy enemy, List<Rectangle> collisionObjects)
         {
-            Rectangle bounds = BoundingRectangle;
+            Rectangle bounds = enemy.BoundingRectangle;
 
             foreach (Rectangle obj in collisionObjects)
             {
@@ -23,29 +22,22 @@ namespace GameDevProject.Lib.Collisions
                     Vector2 depth = RectangleExtensions.GetIntersectionDepth(bounds, obj);
                     if (depth != Vector2.Zero)
                     {
+
                         float absDepthX = Math.Abs(depth.X);
                         float absDepthY = Math.Abs(depth.Y);
 
+
                         if (absDepthY < absDepthX)
                         {
-                            if (previousBottom <= obj.Top)
-                                moveable.IsOnGround = true;
-
-                            moveable.Position = new Vector2(moveable.Position.X, moveable.Position.Y + depth.Y);
-
-                            bounds = BoundingRectangle;
+                            enemy.Position = new Vector2(enemy.Position.X, enemy.Position.Y + depth.Y);
                         }
                         else
                         {
-                            moveable.Position = new Vector2(moveable.Position.X + depth.X, moveable.Position.Y);
-
-                            bounds = BoundingRectangle;
+                            enemy.Position = new Vector2(enemy.Position.X + depth.X, enemy.Position.Y);
                         }
                     }
                 }
             }
-
-            previousBottom = bounds.Bottom;
         }
     }
 }

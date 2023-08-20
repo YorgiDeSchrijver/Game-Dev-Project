@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using GameDevProject.Lib.ContentManagement;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace GameDevProject.Lib.Objects
 {
     public class Star : Object
     {
-        public Star(Vector2 position, ContentManager content) : base(position, content, "Star", 32, 12)
+        public Star(Vector2 position, ContentLoader contentLoader) : base(position, contentLoader, "Star", 32, 12)
         {
         }
     }
