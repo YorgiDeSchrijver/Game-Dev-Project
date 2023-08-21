@@ -52,6 +52,8 @@ namespace GameDevProject.Lib.Levels
         private int stars = 0;
         public int Stars => stars;
 
+        private DateTime lastHitTime = DateTime.MinValue;
+        private TimeSpan hitCooldown = TimeSpan.FromSeconds(3);
 
         public Level(IMapLoader mapLoader, ITilesetLoader tilesetLoader, ILayerLoader layerLoader, ICollisionLoader collisionLoader, IObjectLoader objectLoader, IPlayerLoader playerLoader, IEnemyLoader enemyLoader, IBackgroundLoader backgroundLoader, IInputReader inputReader, ContentLoader contentLoader, int levelNumber)
         {
@@ -177,12 +179,15 @@ namespace GameDevProject.Lib.Levels
 
         public void HandleEnemyCollisions()
         {
+            DateTime currentTime = DateTime.Now;
+
             List<IEnemy> enemiesToRemove = new();
             foreach(IEnemy enemy in enemies)
             {
-                if(player.BoundingRectangle.Intersects(enemy.BoundingRectangle) && player.InputReader.AnimationState != "Attack")
+                if(player.BoundingRectangle.Intersects(enemy.BoundingRectangle) && player.InputReader.AnimationState != "Attack" && (currentTime - lastHitTime) >= hitCooldown)
                 {
                     lives--;
+                    lastHitTime = currentTime;
                 }
                 if(enemy.currentAnimationState == "Death")
                 {

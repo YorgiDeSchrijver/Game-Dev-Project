@@ -20,7 +20,6 @@ namespace GameDevProject.Lib.Character
         private string animationState;
         private SpriteEffects spriteEffects;
 
-        private AnimationFrame lastFrame;
         private Rectangle lastFrameBounds;
         public Rectangle BoundingRectangle 
         { 
@@ -28,10 +27,9 @@ namespace GameDevProject.Lib.Character
             { 
                 if(playerAnimation.currentAnimation.CurrentFrame != null)
                 {
-                    if(playerAnimation.currentAnimation.CurrentFrame != lastFrame)
+                    if(lastFrameBounds.IsEmpty)
                     {
                         lastFrameBounds = Bounds.GetBounds(texture, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle);
-                        lastFrame = playerAnimation.currentAnimation.CurrentFrame;
                     }
                     int left = (int)Math.Round(Position.X - playerAnimation.currentAnimation.Origin.X) + lastFrameBounds.X;
                     int top = (int)Math.Round(Position.Y - playerAnimation.currentAnimation.Origin.Y) + lastFrameBounds.Y;
@@ -79,20 +77,7 @@ namespace GameDevProject.Lib.Character
         {
 
             spriteBatch.Draw(texture, Position, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle, Color.White, 0f, new Vector2(playerAnimation.currentAnimation.CurrentFrame.SourceRectangle.Width / 2, playerAnimation.currentAnimation.CurrentFrame.SourceRectangle.Height) /*playerAnimation.currentAnimation.Origin*/, 1f, spriteEffects, 0f);
-            // Draw the bounding rectangle around the player character
-            Rectangle boundingRect = BoundingRectangle;
-            spriteBatch.DrawRectangle(boundingRect, Color.Red * 0.5f);
         }
     }
 }
 
-public static class SpriteBatchExtensions
-{
-    public static void DrawRectangle(this SpriteBatch spriteBatch, Rectangle rectangle, Color color)
-    {
-        Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
-        pixel.SetData(new[] { color });
-
-        spriteBatch.Draw(pixel, rectangle, color);
-    }
-}

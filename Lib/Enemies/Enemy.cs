@@ -41,8 +41,6 @@ namespace GameDevProject.Lib.Enemies
         protected int timeSinceLastAttack;
         protected int timeSinceWaittimeAttack;
 
-
-        private AnimationFrame lastFrame;
         private Rectangle lastFrameBounds;
         public Rectangle BoundingRectangle
         {
@@ -50,10 +48,9 @@ namespace GameDevProject.Lib.Enemies
             {
                 if (animation.CurrentFrame != null)
                 {
-                    if (animation.CurrentFrame != lastFrame)
+                    if (lastFrameBounds.IsEmpty)
                     {
                         lastFrameBounds = Bounds.GetBounds(texture, animation.CurrentFrame.SourceRectangle);
-                        lastFrame = animation.CurrentFrame;
                     }
 
                     int left = (int)Math.Round(Position.X - animation.Origin.X) + lastFrameBounds.X;
@@ -129,7 +126,6 @@ namespace GameDevProject.Lib.Enemies
         {
             spriteBatch.Draw(texture, Position, animation.CurrentFrame.SourceRectangle, Color.White, 0f, new Vector2(animation.CurrentFrame.SourceRectangle.Width / 2, animation.CurrentFrame.SourceRectangle.Height), 1f, currentDirection == Direction.Left? SpriteEffects.FlipHorizontally
                 : SpriteEffects.None, 0f);
-            spriteBatch.DrawRectangle(BoundingRectangle, Color.Red * 0.5f);
         }
 
     }

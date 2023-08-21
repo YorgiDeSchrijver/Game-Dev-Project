@@ -23,6 +23,12 @@ namespace GameDevProject.Lib.Levels
                     case "Ghost":
                         LoadEnemiesOfType<Ghost>(obj, position => new Ghost(position, contentLoader, collisionObjects, player));
                         break;
+                    case "Skeleton":
+                        LoadEnemiesOfType<Skeleton>(obj, position => new Skeleton(position, contentLoader, collisionObjects, player));
+                        break;
+                    case "Evil_Knight":
+                        LoadEnemiesOfType<Evil_Knight>(obj, position => new Evil_Knight(position, contentLoader, collisionObjects, player));
+                        break;
                     default:
                         break;
                 }
